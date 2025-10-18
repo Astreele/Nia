@@ -1,7 +1,10 @@
+const logger = require('../utils/logger');
+
 module.exports = {
   name: 'ready',
   once: true,
   execute(client) {
-    console.log(`✅ Logged in as ${client.user.tag}`);
+    logger.info(`✅ Logged in as ${client.user.tag}`);
+    client.user.setActivity('Tracking EXP', { type: 'WATCHING' });
   }
 };

@@ -1,19 +1,3 @@
-/**
- * createCtxForMessage(message)
- * createCtxForInteraction(interaction)
- *
- * Both return an object with:
- * - isCommand() => boolean
- * - reply(options)
- * - deferReply()
- * - editReply(content)
- * - followUp(options)
- *
- * The message variant emulates defer/edit by sending a temporary message and editing it.
- */
-
-const path = require('path');
-
 function createCtxForMessage(message) {
   let deferredMessage = null;
   return {
@@ -26,34 +10,25 @@ function createCtxForMessage(message) {
     createdTimestamp: message.createdTimestamp,
     async deferReply() {
       try {
-        // send a small placeholder and keep it so editReply can update it
         deferredMessage = await message.channel.send('⏳ Processing...');
       } catch (e) {
-        // fallback to typing
         try { await message.channel.sendTyping(); } catch {}
       }
     },
     async reply(options) {
-      if (typeof options === 'string') return message.reply(options);
-      if (options && typeof options === 'object') {
-        // ignore ephemeral for messages
-        const content = options.content ?? options;
-        if (options.fetchReply) {
-          return message.reply(content);
-        }
-        return message.reply(content);
-      }
-      return message.reply(String(options));
+      if (typeof options === 'string') return message.reply({ content: options });
+      return message.reply(options);
     },
     async editReply(content) {
+      const payload = typeof content === 'string' ? { content } : content;
       if (deferredMessage) {
-        return deferredMessage.edit(typeof content === 'string' ? content : (content.content || ''));
+        return deferredMessage.edit(payload);
       }
-      return message.channel.send(typeof content === 'string' ? content : (content.content || ''));
+      return message.channel.send(payload);
     },
     async followUp(options) {
-      if (typeof options === 'string') return message.channel.send(options);
-      return message.channel.send(options.content || '');
+      const payload = typeof options === 'string' ? { content: options } : options;
+      return message.channel.send(payload);
     }
   };
 }
@@ -67,18 +42,10 @@ function createCtxForInteraction(interaction) {
     channel: interaction.channel,
     content: null,
     createdTimestamp: interaction.createdTimestamp,
-    async deferReply(opts) {
-      return interaction.deferReply(opts);
-    },
-    async reply(options) {
-      return interaction.reply(options);
-    },
-    async editReply(content) {
-      return interaction.editReply(content);
-    },
-    async followUp(options) {
-      return interaction.followUp(options);
-    }
+    async deferReply(opts) { return interaction.deferReply(opts); },
+    async reply(options) { return interaction.reply(options); },
+    async editReply(content) { return interaction.editReply(content); },
+    async followUp(options) { return interaction.followUp(options); }
   };
 }
 

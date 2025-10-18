@@ -1,44 +1,24 @@
 const { Collection, PermissionsBitField } = require('discord.js');
 const { createCtxForInteraction } = require('../utils/respond');
+const logger = require('../utils/logger');
 
 module.exports = {
   name: 'interactionCreate',
   async execute(interaction, client) {
-    if (!interaction.isCommand()) return;
+    if (!interaction.isChatInputCommand()) return;
 
     const command = client.commands.get(interaction.commandName);
-    if (!command) return interaction.reply({ content: 'Command not found.', ephemeral: true });
+    if (!command) return;
 
-    // owner key compatibility: support ownerId or ownerID
-    const ownerId = (client.config && (client.config.ownerId || client.config.ownerID)) || null;
-
-    // Owner-only
+    const ownerId = client.config.ownerId || client.config.ownerID;
     if (command.ownerOnly && interaction.user.id !== ownerId) {
       return interaction.reply({ content: 'You cannot use this command.', ephemeral: true });
     }
 
-    // Guild-only
     if (command.guildOnly && !interaction.inGuild()) {
       return interaction.reply({ content: 'This command can only be used in servers.', ephemeral: true });
     }
 
-    // User permissions
-    if (command.permissions && command.permissions.length) {
-      const member = interaction.member;
-      if (!member.permissions.has(PermissionsBitField.resolve(command.permissions))) {
-        return interaction.reply({ content: 'You do not have the required permissions to run this command.', ephemeral: true });
-      }
-    }
-
-    // Bot permissions
-    if (command.botPermissions && command.botPermissions.length && interaction.inGuild()) {
-      const me = interaction.guild.members.me;
-      if (!me.permissions.has(PermissionsBitField.resolve(command.botPermissions))) {
-        return interaction.reply({ content: 'I need additional permissions to run this command.', ephemeral: true });
-      }
-    }
-
-    // Cooldown
     const now = Date.now();
     const timestamps = client.cooldowns.get(command.name) || new Collection();
     const cooldownAmount = (command.cooldown || 3) * 1000;
@@ -53,28 +33,21 @@ module.exports = {
     client.cooldowns.set(command.name, timestamps);
     setTimeout(() => timestamps.delete(interaction.user.id), cooldownAmount);
 
-    // Build args from options (order follows command.options if present)
     let args = [];
     if (Array.isArray(command.options) && command.options.length) {
-      args = command.options.map(opt => {
-        const val = interaction.options.get(opt.name);
-        return val ? val.value : null;
-      });
-    } else {
-      args = interaction.options.data.map(d => d.value);
+      args = command.options.map(opt => interaction.options.get(opt.name)?.value ?? null);
     }
 
-    // Context wrapper
     const ctx = createCtxForInteraction(interaction);
 
     try {
       await command.execute(ctx, client, args);
     } catch (err) {
-      console.error(`Error executing ${command.name}:`, err);
+      logger.error(`Error executing slash command ${command.name}:`, err);
       if (interaction.replied || interaction.deferred) {
-        await interaction.followUp({ content: 'There was an error executing the command.', ephemeral: true });
+        await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
       } else {
-        await interaction.reply({ content: 'There was an error executing the command.', ephemeral: true });
+        await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
       }
     }
   }

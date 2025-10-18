@@ -20,7 +20,7 @@ module.exports = (client) => {
 
   async function loadCommands() {
     client.commands.clear();
-    client.textCommands = new Map();
+    client.textCommands.clear();
     const files = listFiles(commandsPath);
     const slashCommands = [];
 
@@ -35,8 +35,6 @@ module.exports = (client) => {
         }
 
         client.commands.set(command.name, command);
-
-        // text trigger mapping: map by lowercase name and optional aliases
         client.textCommands.set(command.name.toLowerCase(), command);
         if (Array.isArray(command.aliases)) {
           for (const a of command.aliases) client.textCommands.set(a.toLowerCase(), command);
@@ -58,8 +56,8 @@ module.exports = (client) => {
   }
 
   async function registerCommands() {
-    if (!client.config || !client.config.clientId) {
-      logger.warn('clientId not set; skipping command registration.');
+    if (!client.config || !client.config.clientId || !client.config.token) {
+      logger.warn('clientId or token not set; skipping command registration.');
       return;
     }
 
@@ -71,7 +69,7 @@ module.exports = (client) => {
           Routes.applicationGuildCommands(client.config.clientId, client.config.devGuildId),
           { body: registeredCommands }
         );
-        logger.info('Registered commands to DEV guild:', client.config.devGuildId);
+        logger.info(`Registered commands to DEV guild: ${client.config.devGuildId}`);
       } else {
         await rest.put(
           Routes.applicationCommands(client.config.clientId),

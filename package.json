@@ -2,7 +2,8 @@
   "dependencies": {
     "chokidar": "^4.0.3",
     "discord.js": "^14.22.1",
-    "dotenv": "^17.2.2",
-    "winston": "^3.17.0"
+    "winston": "^3.17.0",
+    "better-sqlite3": "^11.1.2",
+    "node-cron": "^3.0.3"
   }
 }
